@@ -145,8 +145,8 @@ Deno.serve(async (req) => {
       }
       const savedOrder = savedOrders[0];
       const lines = orderItems.map((p: {name:string;qty:number;price:number}) =>
-        `• ${p.name} x${p.qty} — ${(p.price * p.qty).toFixed(2)}`
-      ).join("\\n");
+        `• ${escapeTelegramHtml(p.name)} x${p.qty} — ${(p.price * p.qty).toFixed(2)}`
+      ).join("\n");
       const telegramText = [
         "🛒 <b>New Cozy Corner Order</b>",
         `Order: <code>${String(savedOrder.id).slice(0, 8)}</code>`,

@@ -85,6 +85,53 @@ Deno.serve(async (req) => {
 
     if (body.action === "check") return json({ ok: true, admin: true });
 
+    if (body.action === "upload") {
+      const file = body.file || {};
+      const mimeTypes: Record<string, string> = {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+        "image/gif": "gif",
+      };
+      const extension = mimeTypes[String(file.type || "")];
+      const encoded = String(file.base64 || "");
+      if (!extension || !encoded || encoded.length > 7_000_000) {
+        return json({ error: "Choose a JPG, PNG, WEBP or GIF image up to 5 MB" }, 400);
+      }
+      let bytes: Uint8Array;
+      try {
+        const binary = atob(encoded);
+        bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+      } catch {
+        return json({ error: "Invalid image data" }, 400);
+      }
+      if (!bytes.length || bytes.length > 5 * 1024 * 1024) {
+        return json({ error: "Image must be 5 MB or smaller" }, 400);
+      }
+      const path = `products/${crypto.randomUUID()}.${extension}`;
+      const uploadResponse = await fetch(`${supabaseUrl}/storage/v1/object/products/${path.split("/").map(encodeURIComponent).join("/")}`, {
+        method: "POST",
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": String(file.type),
+          "x-upsert": "true",
+        },
+        body: bytes,
+      });
+      if (!uploadResponse.ok) {
+        const detail = await uploadResponse.text().catch(() => "");
+        console.error("Storage upload failed:", detail);
+        return json({ error: "Photo upload failed. Please try again." }, 502);
+      }
+      return json({
+        ok: true,
+        image_url: `${supabaseUrl}/storage/v1/object/public/products/${path}`,
+      });
+    }
+
+
+
     if (body.action === "list") {
       const response = await fetch(`${base}?select=id,name,category,description,price,image_url,available,created_at&order=created_at.desc`, {
         headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },

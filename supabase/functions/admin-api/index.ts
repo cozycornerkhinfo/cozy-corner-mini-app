@@ -25,6 +25,14 @@ function hex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+function escapeTelegramHtml(value: string): string {
+  return value.replace(/[&<>]/g, (ch) => {
+    if (ch === "&") return "&amp;";
+    if (ch === "<") return "&lt;";
+    return "&gt;";
+  });
+}
+
 function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -142,13 +150,13 @@ Deno.serve(async (req) => {
       const telegramText = [
         "🛒 <b>New Cozy Corner Order</b>",
         `Order: <code>${String(savedOrder.id).slice(0, 8)}</code>`,
-        `Customer: ${customerName.replace(/[&<>]/g, (ch) => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[ch] || ch))}`,
+        `Customer: ${escapeTelegramHtml(customerName)}`,
         `Telegram ID: <code>${telegramUserId}</code>`,
         "",
         lines,
         "",
         `<b>Total: ${total.toFixed(2)} USD</b>`,
-        note ? `Note: ${note.replace(/[&<>]/g, (ch) => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[ch] || ch))}` : "",
+        note ? `Note: ${escapeTelegramHtml(note)}` : "",
       ].filter(Boolean).join("\\n");
       let telegramSent = false;
       try {

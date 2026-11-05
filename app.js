@@ -1,4 +1,6 @@
-// Demo catalogue. Replace with Supabase product loading in the next setup step.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+// Demo catalogue remains as a fallback until Supabase is configured.
 const demoProducts = [
   {id:"coffee-1",name:"Iced Americano",category:"Coffee",price:2.00,image:"https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=600"},
   {id:"coffee-2",name:"Iced Latte",category:"Coffee",price:2.50,image:"https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=600"},
@@ -6,8 +8,20 @@ const demoProducts = [
   {id:"snack-1",name:"French Fries",category:"Snacks",price:2.00,image:"https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=600"},
   {id:"beer-1",name:"Draught Beer",category:"Beer",price:1.50,image:"https://images.unsplash.com/photo-1513558161293-7a1f4b1c?w=600"}
 ];
-const categories = ["All","Coffee","Drinks","Snacks","Beer"];
+let categories = ["All","Coffee","Drinks","Snacks","Beer"];
 const cart = new Map();
+async function loadProducts(){
+  if(!SUPABASE_URL || !SUPABASE_KEY) return;
+  try {
+    const response=await fetch(`${SUPABASE_URL}/rest/v1/products?select=id,name,category,description,price,image_url,available&available=eq.true&order=created_at.desc`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}});
+    if(!response.ok) throw new Error(`Supabase returned ${response.status}`);
+    const rows=await response.json();
+    demoProducts.splice(0,demoProducts.length,...rows.map(p=>({...p,price:Number(p.price),image:p.image_url||""})));
+    categories=["All",...new Set(demoProducts.map(p=>p.category).filter(Boolean))];
+    cart.clear(); renderCategories(); renderProducts(); renderBasket();
+    if(!demoProducts.length) $("products").innerHTML='<p class="muted">No products yet. Add products in your Supabase products table.</p>';
+  } catch(error) { $("products").innerHTML='<p class="muted">Could not load products. Check Supabase settings and database policies.</p>'; console.error(error); }
+}
 let activeCategory = "All";
 const $ = (id) => document.getElementById(id);
 const money = n => "$" + n.toFixed(2);
@@ -44,4 +58,4 @@ $("order-button").onclick=async()=>{
   finally{$("order-button").disabled=false;}
 };
 if(window.Telegram?.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand();}
-renderCategories();renderProducts();renderBasket();
+renderCategories();renderProducts();renderBasket();loadProducts();

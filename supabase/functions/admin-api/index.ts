@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
       if (!bytes.length || bytes.length > 5 * 1024 * 1024) {
         return json({ error: "Image must be 5 MB or smaller" }, 400);
       }
-      const path = `products/${crypto.randomUUID()}.${extension}`;
+      const path = `${crypto.randomUUID()}.${extension}`;
       const uploadResponse = await fetch(`${supabaseUrl}/storage/v1/object/products/${path.split("/").map(encodeURIComponent).join("/")}`, {
         method: "POST",
         headers: {

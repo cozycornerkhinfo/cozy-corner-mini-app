@@ -72,10 +72,101 @@ Deno.serve(async (req) => {
 
     const initData = req.headers.get("x-telegram-init-data") || "";
     const telegramUserId = await verifyTelegram(initData, botToken);
-    if (telegramUserId !== adminId) return json({ error: "Admin access denied" }, 403);
-
     const body = await req.json();
     const base = `${supabaseUrl}/rest/v1/products`;
+
+    // Customer order submission: accept any verified Telegram Mini App user.
+    if (body.action === "submit-order") {
+      if (!telegramUserId) return json({ error: "Please open the Mini App from Telegram and try again." }, 401);
+      const customerName = String(body.customer_name || "").trim().slice(0, 60);
+      const note = String(body.note || "").trim().slice(0, 200);
+      const submittedItems = Array.isArray(body.items) ? body.items : [];
+      if (!customerName) return json({ error: "Please enter your name." }, 400);
+      if (!submittedItems.length || submittedItems.length > 30) return json({ error: "Your basket is empty or too large." }, 400);
+
+      const quantities = new Map<string, number>();
+      for (const item of submittedItems) {
+        const id = String(item.id || "");
+        const qty = Number(item.qty);
+        if (!/^[0-9a-f-]{36}$/i.test(id) || !Number.isInteger(qty) || qty < 1 || qty > 50) {
+          return json({ error: "Invalid basket item. Please refresh and try again." }, 400);
+        }
+        quantities.set(id, (quantities.get(id) || 0) + qty);
+      }
+      const ids = [...quantities.keys()];
+      const productResponse = await fetch(
+        `${base}?select=id,name,price,available&id=in.(${ids.map(encodeURIComponent).join(",")})&available=eq.true`,
+        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } },
+      );
+      const productRows = await productResponse.json().catch(() => []);
+      if (!productResponse.ok || !Array.isArray(productRows) || productRows.length !== ids.length) {
+        return json({ error: "One or more products are no longer available. Please refresh your basket." }, 400);
+      }
+      const orderItems = productRows.map((p: {id:string;name:string;price:number|string}) => ({
+        id: p.id, name: p.name, price: Number(p.price), qty: quantities.get(p.id) || 0,
+      }));
+      const total = Number(orderItems.reduce((sum: number, p: {price:number;qty:number}) => sum + p.price * p.qty, 0).toFixed(2));
+      let telegramUser: Record<string, unknown> = { id: telegramUserId };
+      try {
+        const params = new URLSearchParams(initData);
+        const rawUser = params.get("user");
+        if (rawUser) telegramUser = JSON.parse(rawUser);
+      } catch { /* verified ID remains available */ }
+
+      const orderResponse = await fetch(`${supabaseUrl}/rest/v1/orders`, {
+        method: "POST",
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify({
+          customer_name: customerName,
+          note,
+          currency: "USD",
+          items: orderItems,
+          total,
+          telegram_user: telegramUser,
+        }),
+      });
+      const savedOrders = await orderResponse.json().catch(() => []);
+      if (!orderResponse.ok || !Array.isArray(savedOrders) || !savedOrders[0]) {
+        console.error("Order database insert failed:", savedOrders);
+        return json({ error: "Could not save your order. Please try again." }, 502);
+      }
+      const savedOrder = savedOrders[0];
+      const lines = orderItems.map((p: {name:string;qty:number;price:number}) =>
+        `• ${p.name} x${p.qty} — ${(p.price * p.qty).toFixed(2)}`
+      ).join("\\n");
+      const telegramText = [
+        "🛒 <b>New Cozy Corner Order</b>",
+        `Order: <code>${String(savedOrder.id).slice(0, 8)}</code>`,
+        `Customer: ${customerName.replace(/[&<>]/g, (ch) => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[ch] || ch))}`,
+        `Telegram ID: <code>${telegramUserId}</code>`,
+        "",
+        lines,
+        "",
+        `<b>Total: ${total.toFixed(2)} USD</b>`,
+        note ? `Note: ${note.replace(/[&<>]/g, (ch) => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[ch] || ch))}` : "",
+      ].filter(Boolean).join("\\n");
+      let telegramSent = false;
+      try {
+        const notifyResponse = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: adminId, text: telegramText, parse_mode: "HTML" }),
+        });
+        const notifyResult = await notifyResponse.json().catch(() => ({}));
+        telegramSent = notifyResponse.ok && notifyResult.ok === true;
+        if (!telegramSent) console.error("Telegram order notification failed:", notifyResult);
+      } catch (notifyError) {
+        console.error("Telegram order notification error:", notifyError);
+      }
+      return json({ ok: true, order_id: savedOrder.id, telegram_sent: telegramSent });
+    }
+
+    if (telegramUserId !== adminId) return json({ error: "Admin access denied" }, 403);
     const headers = {
       apikey: serviceKey,
       Authorization: `Bearer ${serviceKey}`,

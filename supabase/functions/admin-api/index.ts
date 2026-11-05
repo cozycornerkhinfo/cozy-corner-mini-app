@@ -85,6 +85,15 @@ Deno.serve(async (req) => {
 
     if (body.action === "check") return json({ ok: true, admin: true });
 
+    if (body.action === "list") {
+      const response = await fetch(`${base}?select=id,name,category,description,price,image_url,available,created_at&order=created_at.desc`, {
+        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+      });
+      const result = await response.json().catch(() => []);
+      if (!response.ok) return json({ error: "Could not load products" }, 502);
+      return json({ ok: true, products: result });
+    }
+
     if (body.action === "create" || body.action === "update") {
       const p = body.product || {};
       if (!String(p.name || "").trim() || !String(p.category || "").trim() ||

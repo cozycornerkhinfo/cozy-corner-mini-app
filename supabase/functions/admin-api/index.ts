@@ -157,21 +157,38 @@ Deno.serve(async (req) => {
         "",
         `<b>Total: ${total.toFixed(2)} USD</b>`,
         note ? `Note: ${escapeTelegramHtml(note)}` : "",
-      ].filter(Boolean).join("\\n");
+      ].filter(Boolean).join("\n");
+      const groupChatId = Deno.env.get("TELEGRAM_GROUP_CHAT_ID");
       let telegramSent = false;
-      try {
-        const notifyResponse = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      let groupSent = false;
+      const sendTelegramMessage = async (chatId: string | number) => {
+        const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: adminId, text: telegramText, parse_mode: "HTML" }),
+          body: JSON.stringify({ chat_id: chatId, text: telegramText, parse_mode: "HTML" }),
         });
-        const notifyResult = await notifyResponse.json().catch(() => ({}));
-        telegramSent = notifyResponse.ok && notifyResult.ok === true;
-        if (!telegramSent) console.error("Telegram order notification failed:", notifyResult);
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.ok !== true) console.error("Telegram order notification failed:", result);
+        return response.ok && result.ok === true;
+      };
+      try {
+        telegramSent = await sendTelegramMessage(adminId);
       } catch (notifyError) {
-        console.error("Telegram order notification error:", notifyError);
+        console.error("Telegram private order notification error:", notifyError);
       }
-      return json({ ok: true, order_id: savedOrder.id, telegram_sent: telegramSent });
+      if (groupChatId) {
+        try {
+          groupSent = await sendTelegramMessage(groupChatId);
+        } catch (notifyError) {
+          console.error("Telegram group order notification error:", notifyError);
+        }
+      }
+      return json({
+        ok: true,
+        order_id: savedOrder.id,
+        telegram_sent: telegramSent,
+        group_sent: groupSent,
+      });
     }
 
     if (telegramUserId !== adminId) return json({ error: "Admin access denied" }, 403);

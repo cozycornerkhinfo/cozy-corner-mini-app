@@ -116,6 +116,8 @@ function resetProductForm() {
   $("product-form").reset();
   $("edit-product-id").value = "";
   $("admin-available").checked = true;
+  $("admin-photo-preview").hidden = true;
+  $("admin-photo-preview").removeAttribute("src");
   $("save-product").textContent = "Add product";
   $("cancel-edit").hidden = true;
 }
@@ -126,6 +128,9 @@ function startEdit(product) {
   $("admin-category").value = product.category || "";
   $("admin-price").value = product.price;
   $("admin-image").value = product.image_url || "";
+  $("admin-photo").value = "";
+  $("admin-photo-preview").src = product.image_url || "";
+  $("admin-photo-preview").hidden = !product.image_url;
   $("admin-description").value = product.description || "";
   $("admin-available").checked = product.available !== false;
   $("save-product").textContent = "Save changes";
@@ -166,6 +171,18 @@ async function refreshAdminProducts() {
   });
 }
 
+$("admin-photo").addEventListener("change", () => {
+  const file = $("admin-photo").files?.[0];
+  const preview = $("admin-photo-preview");
+  if (!file) {
+    preview.hidden = true;
+    preview.removeAttribute("src");
+    return;
+  }
+  preview.src = URL.createObjectURL(file);
+  preview.hidden = false;
+});
+
 $("product-form").addEventListener("submit", async event => {
   event.preventDefault();
   const id = $("edit-product-id").value;
@@ -181,6 +198,23 @@ $("product-form").addEventListener("submit", async event => {
   $("save-product").disabled = true;
   $("admin-status").textContent = "Saving…";
   try {
+    const photo = $("admin-photo").files?.[0];
+    if (photo) {
+      const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      if (!allowed.includes(photo.type)) throw new Error("Please choose a JPG, PNG, WEBP or GIF image.");
+      if (photo.size > 5 * 1024 * 1024) throw new Error("Image must be 5 MB or smaller.");
+      $("admin-status").textContent = "Uploading photo…";
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("Could not read the selected photo."));
+        reader.readAsDataURL(photo);
+      });
+      const base64 = String(dataUrl).split(",")[1] || "";
+      const uploaded = await adminRequest("upload", { file: { type: photo.type, base64 } });
+      product.image_url = uploaded.image_url;
+    }
+    $("admin-status").textContent = "Saving product…";
     await adminRequest(id ? "update" : "create", { product });
     $("admin-status").textContent = id ? "Product updated." : "Product added.";
     resetProductForm();

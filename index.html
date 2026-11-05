@@ -13,6 +13,22 @@
     <header><p class="eyebrow">COZY CORNER</p><h1>Build your basket</h1><p class="muted">Your favourites, ready to order.</p></header>
     <nav id="categories" class="categories"></nav>
     <section id="products" class="products" aria-live="polite"></section>
+    <section id="admin-panel" class="admin-panel" hidden>
+      <div class="admin-heading"><div><p class="eyebrow">COZY CORNER</p><h2>Admin · Products</h2></div><span class="admin-tag">ADMIN</span></div>
+      <form id="product-form" class="product-form">
+        <input id="edit-product-id" type="hidden" />
+        <label>Product name<input id="admin-name" maxlength="100" required placeholder="e.g. Iced Latte" /></label>
+        <label>Category<input id="admin-category" maxlength="50" required placeholder="e.g. Coffee" /></label>
+        <label>Price (USD)<input id="admin-price" type="number" min="0" step="0.01" required placeholder="2.50" /></label>
+        <label>Photo URL<input id="admin-image" type="url" placeholder="https://..." /></label>
+        <label>Description<input id="admin-description" maxlength="500" placeholder="Optional description" /></label>
+        <label class="available-label"><input id="admin-available" type="checkbox" checked /> Available for customers</label>
+        <div class="admin-actions"><button id="save-product" class="order-button" type="submit">Add product</button><button id="cancel-edit" class="secondary-button" type="button" hidden>Cancel edit</button></div>
+      </form>
+      <p id="admin-status" class="status" role="status"></p>
+      <h3>Manage products</h3>
+      <div id="admin-products" class="admin-products">Loading products…</div>
+    </section>
     <section class="basket">
       <div class="basket-head"><h2>Your basket</h2><strong id="total">$0.00</strong></div>
       <div id="basket-items" class="basket-items"><p class="muted">Your basket is empty.</p></div>

@@ -241,10 +241,11 @@ async function setupAdmin() {
     try {
       await adminRequest("setup-webhook");
       console.info("Cozy Corner Telegram chatbot webhook is registered.");
+      if (status) status.textContent = "💙 Telegram chatbot connected successfully.";
     } catch (webhookError) {
       console.warn("Telegram chatbot setup is pending:", webhookError.message);
+      if (status) status.textContent = "Telegram chatbot setup failed: " + webhookError.message;
     }
-    if (status) status.textContent = "";
     isAdmin = true;
     $("admin-panel").hidden = false;
     await refreshAdminProducts();

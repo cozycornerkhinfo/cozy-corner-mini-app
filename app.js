@@ -199,6 +199,8 @@ async function setupAdmin() {
     await refreshAdminProducts();
   } catch (error) {
     console.info("Admin panel unavailable:", error.message);
+    const status = $("admin-access-status");
+    if (status) status.textContent = "Admin verification: " + error.message;
   }
 }
 

@@ -78,7 +78,7 @@ async function telegramApi(botToken: string, method: string, payload: Record<str
 
 const botCopy = {
   en: {
-    welcome: "Welcome to Cozy Corner! 💙\\nPlease choose your language to continue.",
+    welcome: "Welcome to Cozy Corner! 💙\nPlease choose your language to continue.",
     menu: "What would you like to do?",
     products: "🛍️ <b>Available Menu</b>",
     empty: "There are no available products right now.",
@@ -92,7 +92,7 @@ const botCopy = {
     back: "Main Menu",
   },
   km: {
-    welcome: "សូមស្វាគមន៍មកកាន់ Cozy Corner! 💙\\nសូមជ្រើសរើសភាសា។",
+    welcome: "សូមស្វាគមន៍មកកាន់ Cozy Corner! 💙\nសូមជ្រើសរើសភាសា។",
     menu: "តើអ្នកចង់ធ្វើអ្វី?",
     products: "🛍️ <b>មុខម្ហូប និងភេសជ្ជៈដែលមាន</b>",
     empty: "ឥឡូវនេះមិនមានផលិតផលទេ។",
@@ -106,7 +106,7 @@ const botCopy = {
     back: "ម៉ឺនុយដើម",
   },
   my: {
-    welcome: "Cozy Corner မှ ကြိုဆိုပါတယ်။ 💙\\nဆက်လက်ရန် ဘာသာစကားရွေးချယ်ပါ။",
+    welcome: "Cozy Corner မှ ကြိုဆိုပါတယ်။ 💙\nဆက်လက်ရန် ဘာသာစကားရွေးချယ်ပါ။",
     menu: "ဘာလုပ်ချင်ပါသလဲ။",
     products: "🛍️ <b>ရရှိနိုင်သော Menu</b>",
     empty: "လောလောဆယ် ရရှိနိုင်တဲ့ ပစ္စည်းမရှိသေးပါ။",
@@ -157,7 +157,7 @@ async function handleTelegramUpdate(
     if (incoming.startsWith("/start") || incoming.startsWith("/language")) {
       await telegramApi(botToken, "sendMessage", {
         chat_id: chatId,
-        text: "Welcome to Cozy Corner! 💙\\nPlease choose your language to continue.",
+        text: "Welcome to Cozy Corner! 💙\nPlease choose your language to continue.",
         reply_markup: languageKeyboard(),
       });
     } else {
@@ -209,7 +209,7 @@ async function handleTelegramUpdate(
     const list = rows.slice(0, 60).map((p: {name:string;category:string;price:number|string}) =>
       `• ${escapeTelegramHtml(p.name)} — ${Number(p.price).toFixed(2)} <i>(${escapeTelegramHtml(p.category)})</i>`
     );
-    const text = list.length ? `${copy.products}\\n\\n${list.join("\\n")}\\n\\nPrices are in USD.` : copy.empty;
+    const text = list.length ? `${copy.products}\n\n${list.join("\n")}\n\nPrices are in USD.` : copy.empty;
     await send(text, {
       inline_keyboard: [
         [{ text: copy.orderButton, callback_data: `order:${lang}` }],

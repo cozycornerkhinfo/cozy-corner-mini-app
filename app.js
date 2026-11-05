@@ -191,9 +191,19 @@ $("product-form").addEventListener("submit", async event => {
 $("cancel-edit").onclick = resetProductForm;
 
 async function setupAdmin() {
-  if (!telegram || !initData) return;
+  const status = $("admin-access-status");
+  if (!telegram) {
+    if (status) status.textContent = "Telegram WebApp connection not detected. Please reopen from the bot menu.";
+    return;
+  }
+  if (!initData) {
+    if (status) status.textContent = "Telegram user verification data is missing. Please reopen from the bot menu.";
+    return;
+  }
+  if (status) status.textContent = "Checking admin access…";
   try {
     await adminRequest("check");
+    if (status) status.textContent = "";
     isAdmin = true;
     $("admin-panel").hidden = false;
     await refreshAdminProducts();

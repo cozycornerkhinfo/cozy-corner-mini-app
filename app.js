@@ -94,21 +94,22 @@ $("order-button").onclick = async () => {
   if (!items.length) { $("status").textContent = "Please add an item first."; return; }
   const name = $("customer-name").value.trim();
   if (!name) { $("status").textContent = "Please enter your name."; return; }
-  const endpoint = window.COZY_ORDER_ENDPOINT;
-  if (!endpoint) { $("status").textContent = "Orders are not connected yet. Please contact Cozy Corner."; return; }
-  const payload = {
-    customer_name: name, note: $("customer-note").value.trim(), currency: "USD",
-    items: items.map(({ id, name, price, qty }) => ({ id, name, price, qty })),
-    total: items.reduce((sum, p) => sum + p.price * p.qty, 0),
-    telegram_user: telegram?.initDataUnsafe?.user || null
-  };
   $("order-button").disabled = true; $("status").textContent = "Sending order…";
   try {
-    const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (!res.ok) throw new Error("Order request failed");
-    $("status").textContent = "Order sent to Cozy Corner. Thank you!";
+    const result = await adminRequest("submit-order", {
+      customer_name: name,
+      note: $("customer-note").value.trim(),
+      items: items.map(({ id, qty }) => ({ id, qty }))
+    });
+    if (result.telegram_sent) {
+      $("status").textContent = "Order sent to Cozy Corner. Thank you!";
+    } else {
+      $("status").textContent = "Order saved, but Telegram notification could not be delivered. Please contact Cozy Corner.";
+    }
     cart.clear(); renderBasket();
-  } catch (error) { $("status").textContent = "Could not send order. Please try again."; }
+  } catch (error) {
+    $("status").textContent = error.message || "Could not send order. Please try again.";
+  }
   finally { $("order-button").disabled = false; }
 };
 

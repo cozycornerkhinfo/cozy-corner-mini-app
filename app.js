@@ -15,7 +15,12 @@ let isAdmin = false;
 async function adminRequest(action, extra = {}) {
   const response = await fetch(ADMIN_API, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-telegram-init-data": initData },
+    headers: {
+      "Content-Type": "application/json",
+      "x-telegram-init-data": initData,
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`
+    },
     body: JSON.stringify({ action, ...extra })
   });
   const result = await response.json().catch(() => ({}));

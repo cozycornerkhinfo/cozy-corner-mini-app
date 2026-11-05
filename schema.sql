@@ -24,5 +24,11 @@ create table if not exists public.orders (
 alter table public.products enable row level security;
 alter table public.orders enable row level security;
 
--- Add carefully scoped policies in a later setup step.
--- Do not expose service_role keys in the Mini App frontend.
+drop policy if exists "Public can read available products" on public.products;
+create policy "Public can read available products"
+  on public.products for select
+  to anon, authenticated
+  using (available = true);
+
+-- Orders must be submitted through a trusted server function.
+-- Never expose service_role keys in the Mini App frontend.

@@ -105,6 +105,20 @@ const botCopy = {
     open: "បើក Basket Builder",
     back: "ម៉ឺនុយដើម",
   },
+  zh: {
+    welcome: "欢迎来到 Cozy Corner！💙\n请选择您的语言。",
+    menu: "您想进行什么操作？",
+    products: "🛍️ <b>当前菜单</b>",
+    empty: "目前暂无可购买的商品。",
+    order: "点击下方按钮，打开 Cozy Corner Basket Builder 并下单。",
+    privacy: "为了保护隐私，请在 Bot 私聊中继续下单：",
+    choose: "请使用下方按钮继续。",
+    view: "查看菜单",
+    orderButton: "立即下单",
+    language: "更改语言",
+    open: "打开 Basket Builder",
+    back: "主菜单",
+  },
   my: {
     welcome: "Cozy Corner မှ ကြိုဆိုပါတယ်။ 💙\nဆက်လက်ရန် ဘာသာစကားရွေးချယ်ပါ။",
     menu: "ဘာလုပ်ချင်ပါသလဲ။",
@@ -126,6 +140,7 @@ function languageKeyboard() {
     { text: "🇬🇧 English", callback_data: "lang:en" },
     { text: "🇰🇭 ខ្មែរ", callback_data: "lang:km" },
     { text: "🇲🇲 မြန်မာ", callback_data: "lang:my" },
+    { text: "🇨🇳 中文", callback_data: "lang:zh" },
   ]] };
 }
 
@@ -157,7 +172,7 @@ async function handleTelegramUpdate(
     if (incoming.startsWith("/start") || incoming.startsWith("/language")) {
       await telegramApi(botToken, "sendMessage", {
         chat_id: chatId,
-        text: "Welcome to Cozy Corner! 💙\nPlease choose your language to continue.",
+        text: "Welcome to Cozy Corner! 💙\nPlease choose your language / សូមជ្រើសរើសភាសា / ဘာသာစကားရွေးပါ / 请选择语言。",
         reply_markup: languageKeyboard(),
       });
     } else {
@@ -179,7 +194,7 @@ async function handleTelegramUpdate(
   if (!chatId || chatType !== "private") return;
 
   const [action, langRaw] = data.split(":");
-  const lang = (["en", "km", "my"].includes(langRaw) ? langRaw : "en") as keyof typeof botCopy;
+  const lang = (["en", "km", "my", "zh"].includes(langRaw) ? langRaw : "en") as keyof typeof botCopy;
   const copy = botCopy[lang];
   const send = (text: string, reply_markup?: Record<string, unknown>) =>
     telegramApi(botToken, "sendMessage", {

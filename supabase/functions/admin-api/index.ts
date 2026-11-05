@@ -65,6 +65,169 @@ async function verifyTelegram(initData: string, botToken: string): Promise<numbe
   }
 }
 
+async function telegramApi(botToken: string, method: string, payload: Record<string, unknown>) {
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.ok !== true) console.error(`Telegram ${method} failed:`, result);
+  return result;
+}
+
+const botCopy = {
+  en: {
+    welcome: "Welcome to Cozy Corner! 💙\\nPlease choose your language to continue.",
+    menu: "What would you like to do?",
+    products: "🛍️ <b>Available Menu</b>",
+    empty: "There are no available products right now.",
+    order: "Tap below to open the Cozy Corner Basket Builder and place your order.",
+    privacy: "For privacy, please continue your order in my private chat:",
+    choose: "Please use the buttons below to continue.",
+    view: "View Menu",
+    orderButton: "Place an Order",
+    language: "Change Language",
+    open: "Open Basket Builder",
+    back: "Main Menu",
+  },
+  km: {
+    welcome: "សូមស្វាគមន៍មកកាន់ Cozy Corner! 💙\\nសូមជ្រើសរើសភាសា។",
+    menu: "តើអ្នកចង់ធ្វើអ្វី?",
+    products: "🛍️ <b>មុខម្ហូប និងភេសជ្ជៈដែលមាន</b>",
+    empty: "ឥឡូវនេះមិនមានផលិតផលទេ។",
+    order: "ចុចខាងក្រោមដើម្បីបើក Cozy Corner Basket Builder និងធ្វើការកុម្ម៉ង់។",
+    privacy: "ដើម្បីរក្សាភាពឯកជន សូមបន្តការកុម្ម៉ង់តាម Private Chat របស់ Bot៖",
+    choose: "សូមប្រើប៊ូតុងខាងក្រោម។",
+    view: "មើលមុខម្ហូប",
+    orderButton: "ធ្វើការកុម្ម៉ង់",
+    language: "ប្តូរភាសា",
+    open: "បើក Basket Builder",
+    back: "ម៉ឺនុយដើម",
+  },
+  my: {
+    welcome: "Cozy Corner မှ ကြိုဆိုပါတယ်။ 💙\\nဆက်လက်ရန် ဘာသာစကားရွေးချယ်ပါ။",
+    menu: "ဘာလုပ်ချင်ပါသလဲ။",
+    products: "🛍️ <b>ရရှိနိုင်သော Menu</b>",
+    empty: "လောလောဆယ် ရရှိနိုင်တဲ့ ပစ္စည်းမရှိသေးပါ။",
+    order: "အောက်က ခလုတ်ကိုနှိပ်ပြီး Cozy Corner Basket Builder မှာ Order တင်နိုင်ပါတယ်။",
+    privacy: "ကိုယ်ရေးအချက်အလက်လုံခြုံရေးအတွက် Bot Private Chat မှာ Order ဆက်တင်ပေးပါ။",
+    choose: "အောက်ပါခလုတ်တွေကို အသုံးပြုပေးပါ။",
+    view: "Menu ကြည့်ရန်",
+    orderButton: "Order တင်ရန်",
+    language: "ဘာသာစကားပြောင်းရန်",
+    open: "Basket Builder ဖွင့်ရန်",
+    back: "ပင်မ Menu",
+  },
+};
+
+function languageKeyboard() {
+  return { inline_keyboard: [[
+    { text: "🇬🇧 English", callback_data: "lang:en" },
+    { text: "🇰🇭 ខ្មែរ", callback_data: "lang:km" },
+    { text: "🇲🇲 မြန်မာ", callback_data: "lang:my" },
+  ]] };
+}
+
+async function handleTelegramUpdate(
+  update: Record<string, any>,
+  botToken: string,
+  supabaseUrl: string,
+  serviceKey: string,
+) {
+  const message = update.message;
+  const callback = update.callback_query;
+  if (message) {
+    const chatId = message.chat?.id;
+    const chatType = message.chat?.type;
+    const incoming = String(message.text || "").trim();
+    if (!chatId) return;
+    if (chatType !== "private") {
+      if (incoming.startsWith("/start") || incoming.startsWith("/order")) {
+        await telegramApi(botToken, "sendMessage", {
+          chat_id: chatId,
+          text: "💙 For menu and ordering, please chat with me privately:",
+          reply_markup: { inline_keyboard: [[
+            { text: "Open Cozy Corner Bot", url: "https://t.me/BreakfastMenus_bot?start=order" },
+          ]] },
+        });
+      }
+      return;
+    }
+    if (incoming.startsWith("/start") || incoming.startsWith("/language")) {
+      await telegramApi(botToken, "sendMessage", {
+        chat_id: chatId,
+        text: "Welcome to Cozy Corner! 💙\\nPlease choose your language to continue.",
+        reply_markup: languageKeyboard(),
+      });
+    } else {
+      await telegramApi(botToken, "sendMessage", {
+        chat_id: chatId,
+        text: "Please use /start to open the Cozy Corner menu.",
+        reply_markup: languageKeyboard(),
+      });
+    }
+    return;
+  }
+
+  if (!callback) return;
+  const callbackId = String(callback.id || "");
+  const chatId = callback.message?.chat?.id;
+  const chatType = callback.message?.chat?.type;
+  const data = String(callback.data || "");
+  if (callbackId) await telegramApi(botToken, "answerCallbackQuery", { callback_query_id: callbackId });
+  if (!chatId || chatType !== "private") return;
+
+  const [action, langRaw] = data.split(":");
+  const lang = (["en", "km", "my"].includes(langRaw) ? langRaw : "en") as keyof typeof botCopy;
+  const copy = botCopy[lang];
+  const send = (text: string, reply_markup?: Record<string, unknown>) =>
+    telegramApi(botToken, "sendMessage", {
+      chat_id: chatId, text, parse_mode: "HTML", ...(reply_markup ? { reply_markup } : {}),
+    });
+
+  if (action === "lang") {
+    await send(copy.menu, {
+      inline_keyboard: [
+        [{ text: copy.view, callback_data: `menu:${lang}` }],
+        [{ text: copy.orderButton, callback_data: `order:${lang}` }],
+        [{ text: copy.language, callback_data: "language:en" }],
+      ],
+    });
+  } else if (action === "language") {
+    await send("Please choose your language / សូមជ្រើសរើសភាសា / ဘာသာစကားရွေးပါ။", languageKeyboard());
+  } else if (action === "menu") {
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/products?select=name,category,price&available=eq.true&order=category.asc,name.asc`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } },
+    );
+    const rows = await response.json().catch(() => []);
+    if (!response.ok || !Array.isArray(rows)) {
+      await send("Sorry, the menu is temporarily unavailable.");
+      return;
+    }
+    const list = rows.slice(0, 60).map((p: {name:string;category:string;price:number|string}) =>
+      `• ${escapeTelegramHtml(p.name)} — ${Number(p.price).toFixed(2)} <i>(${escapeTelegramHtml(p.category)})</i>`
+    );
+    const text = list.length ? `${copy.products}\\n\\n${list.join("\\n")}\\n\\nPrices are in USD.` : copy.empty;
+    await send(text, {
+      inline_keyboard: [
+        [{ text: copy.orderButton, callback_data: `order:${lang}` }],
+        [{ text: copy.back, callback_data: `lang:${lang}` }],
+      ],
+    });
+  } else if (action === "order") {
+    const appUrl = Deno.env.get("MINI_APP_URL");
+    if (!appUrl) {
+      await send("The ordering link is not configured yet. Please contact Cozy Corner.");
+      return;
+    }
+    await send(copy.order, {
+      inline_keyboard: [[{ text: copy.open, web_app: { url: appUrl } }]],
+    });
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -78,9 +241,20 @@ Deno.serve(async (req) => {
       return json({ error: "Server secrets are not configured" }, 500);
     }
 
+    const body = await req.json();
+    // Telegram webhook updates are authenticated with Telegram's secret-token header.
+    if (body.message || body.callback_query) {
+      const webhookSecret = Deno.env.get("TELEGRAM_WEBHOOK_SECRET") || "";
+      const suppliedSecret = req.headers.get("x-telegram-bot-api-secret-token") || "";
+      if (!webhookSecret || !safeEqual(webhookSecret, suppliedSecret)) {
+        return json({ error: "Invalid Telegram webhook secret" }, 401);
+      }
+      await handleTelegramUpdate(body, botToken, supabaseUrl, serviceKey);
+      return json({ ok: true });
+    }
+
     const initData = req.headers.get("x-telegram-init-data") || "";
     const telegramUserId = await verifyTelegram(initData, botToken);
-    const body = await req.json();
     const base = `${supabaseUrl}/rest/v1/products`;
 
     // Customer order submission: accept any verified Telegram Mini App user.
@@ -192,6 +366,21 @@ Deno.serve(async (req) => {
     }
 
     if (telegramUserId !== adminId) return json({ error: "Admin access denied" }, 403);
+    if (body.action === "setup-webhook") {
+      const webhookSecret = Deno.env.get("TELEGRAM_WEBHOOK_SECRET");
+      if (!webhookSecret || !/^[A-Za-z0-9_-]{1,256}$/.test(webhookSecret)) {
+        return json({ error: "TELEGRAM_WEBHOOK_SECRET is missing or invalid" }, 500);
+      }
+      const webhookUrl = `${supabaseUrl}/functions/v1/admin-api`;
+      const result = await telegramApi(botToken, "setWebhook", {
+        url: webhookUrl,
+        secret_token: webhookSecret,
+        allowed_updates: ["message", "callback_query"],
+        drop_pending_updates: false,
+      });
+      if (result.ok !== true) return json({ error: "Could not register Telegram webhook", details: result }, 502);
+      return json({ ok: true, webhook_url: webhookUrl });
+    }
     const headers = {
       apikey: serviceKey,
       Authorization: `Bearer ${serviceKey}`,

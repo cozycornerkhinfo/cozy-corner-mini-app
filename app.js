@@ -238,6 +238,12 @@ async function setupAdmin() {
   if (status) status.textContent = "Checking admin access…";
   try {
     await adminRequest("check");
+    try {
+      await adminRequest("setup-webhook");
+      console.info("Cozy Corner Telegram chatbot webhook is registered.");
+    } catch (webhookError) {
+      console.warn("Telegram chatbot setup is pending:", webhookError.message);
+    }
     if (status) status.textContent = "";
     isAdmin = true;
     $("admin-panel").hidden = false;
